@@ -456,51 +456,103 @@
             if (section === 'analytics') loadAnalytics();
         }
 
-        // Screenshot upload handling
+        // Screenshot upload handling - FIXED VERSION
         const uploadArea = document.getElementById('upload-area');
         const fileInput = document.getElementById('file-input');
         const previewArea = document.getElementById('preview-area');
         let selectedFiles = [];
 
-        uploadArea.onclick = () => fileInput.click();
+        // Click to upload - using addEventListener
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
 
-        fileInput.onchange = (e) => {
+        // File input change - using addEventListener
+        fileInput.addEventListener('change', (e) => {
             handleFiles(e.target.files);
-        };
+        });
 
-        uploadArea.ondragover = (e) => {
+        // Drag and drop with proper event handling
+        uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             uploadArea.classList.add('drag-over');
-        };
+        });
 
-        uploadArea.ondragleave = () => {
-            uploadArea.classList.remove('drag-over');
-        };
-
-        uploadArea.ondrop = (e) => {
+        uploadArea.addEventListener('dragleave', (e) => {
             e.preventDefault();
+            e.stopPropagation();
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             uploadArea.classList.remove('drag-over');
             handleFiles(e.dataTransfer.files);
-        };
+        });
 
         function handleFiles(files) {
-            selectedFiles = Array.from(files);
-            previewArea.innerHTML = '';
-            
-            selectedFiles.forEach(file => {
+            const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+            const maxSize = 16 * 1024 * 1024; // 16MB
+
+            Array.from(files).forEach(file => {
+                // Validate file type
+                if (!validTypes.includes(file.type)) {
+                    alert('❌ Invalid file type: ' + file.name + '\nOnly PNG, JPG, GIF, WebP allowed');
+                    return;
+                }
+
+                // Validate file size
+                if (file.size > maxSize) {
+                    alert('❌ File too large: ' + file.name + '\nMax size: 16MB');
+                    return;
+                }
+
+                // Add to uploaded files
+                selectedFiles.push(file);
+                
+                // Create preview
                 const reader = new FileReader();
                 reader.onload = (e) => {
+                    const previewDiv = document.createElement('div');
+                    previewDiv.style.cssText = 'position:relative;display:inline-block;margin:10px;';
+                    
                     const img = document.createElement('img');
                     img.src = e.target.result;
-                    previewArea.appendChild(img);
+                    img.style.cssText = 'max-width:150px;max-height:150px;border:2px solid #00ff00;border-radius:5px;';
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.textContent = '×';
+                    removeBtn.type = 'button';
+                    removeBtn.style.cssText = 'position:absolute;top:5px;right:5px;background:#ff0000;color:white;border:none;border-radius:50%;width:25px;height:25px;cursor:pointer;font-size:18px;font-weight:bold;';
+                    removeBtn.onclick = () => {
+                        selectedFiles = selectedFiles.filter(f => f.name !== file.name);
+                        previewDiv.remove();
+                    };
+                    
+                    const fileName = document.createElement('div');
+                    fileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+                    fileName.style.cssText = 'font-size:10px;color:#888;margin-top:5px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                    
+                    previewDiv.appendChild(removeBtn);
+                    previewDiv.appendChild(img);
+                    previewDiv.appendChild(fileName);
+                    previewArea.appendChild(previewDiv);
                 };
                 reader.readAsDataURL(file);
             });
         }
 
-        // Save trade
+        // Save trade - IMPROVED VERSION
         async function saveTrade(e) {
             e.preventDefault();
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = '💾 Saving...';
             
             const tradeData = {
                 date: document.getElementById('trade-date').value,
@@ -525,27 +577,48 @@
                     body: JSON.stringify(tradeData)
                 });
                 
+                if (!response.ok) {
+                    throw new Error('Failed to create trade: ' + response.statusText);
+                }
+                
                 const trade = await response.json();
                 
-                // Upload screenshots
-                for (let file of selectedFiles) {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('type', 'chart');
+                // Upload screenshots with progress
+                if (selectedFiles.length > 0) {
+                    submitBtn.textContent = `💾 Uploading ${selectedFiles.length} screenshot(s)...`;
                     
-                    await fetch(`${API_URL}/api/trades/${trade.id}/screenshots`, {
-                        method: 'POST',
-                        body: formData
-                    });
+                    for (let i = 0; i < selectedFiles.length; i++) {
+                        const file = selectedFiles[i];
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('type', i === 0 ? 'chart' : (i === 1 ? 'entry' : 'exit'));
+                        
+                        const uploadResponse = await fetch(`${API_URL}/api/trades/${trade.id}/screenshots`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (!uploadResponse.ok) {
+                            console.error('Failed to upload screenshot:', file.name);
+                        }
+                        
+                        submitBtn.textContent = `💾 Uploading ${i + 1}/${selectedFiles.length}...`;
+                    }
                 }
                 
                 alert('✅ Trade saved successfully!');
                 document.getElementById('trade-form').reset();
+                document.getElementById('trade-date').valueAsDate = new Date();
                 previewArea.innerHTML = '';
                 selectedFiles = [];
+                loadGallery();
                 
             } catch (error) {
+                console.error('Save error:', error);
                 alert('❌ Error saving trade: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
             }
         }
 
