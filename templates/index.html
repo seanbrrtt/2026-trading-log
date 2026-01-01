@@ -677,6 +677,31 @@
 
         // Set default date to now
         document.getElementById('trade-date').valueAsDate = new Date();
+
+        // AUTO-FILL FROM URL PARAMETERS
+        function autoFillFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            
+            if (params.has('symbol')) document.getElementById('symbol').value = params.get('symbol');
+            if (params.has('strategy')) document.getElementById('strategy').value = params.get('strategy');
+            if (params.has('long_strike')) document.getElementById('strike-long').value = params.get('long_strike');
+            if (params.has('short_strike')) document.getElementById('strike-short').value = params.get('short_strike');
+            if (params.has('entry_price')) document.getElementById('entry-price').value = params.get('entry_price');
+            if (params.has('exit_price')) document.getElementById('exit-price').value = params.get('exit_price');
+            if (params.has('quantity')) document.getElementById('quantity').value = params.get('quantity');
+            if (params.has('expiration')) document.getElementById('expiration').value = params.get('expiration');
+            if (params.has('pnl')) document.getElementById('pnl').value = params.get('pnl');
+            if (params.has('notes')) document.getElementById('notes').value = params.get('notes');
+            if (params.has('date')) document.getElementById('trade-date').value = params.get('date');
+            
+            // If URL params exist, show Add Trade section automatically
+            if (params.toString()) {
+                showSection('add-trade');
+            }
+        }
+        
+        // Run auto-fill on page load
+        autoFillFromURL();
     </script>
 </body>
 </html>
