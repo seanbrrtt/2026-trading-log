@@ -261,6 +261,23 @@ def upload_screenshot(trade_id):
     return jsonify(screenshot.to_dict()), 201
 
 
+@app.route('/api/screenshots/<int:screenshot_id>', methods=['DELETE'])
+def delete_screenshot(screenshot_id):
+    """Delete a screenshot by ID"""
+    screenshot = Screenshot.query.get_or_404(screenshot_id)
+    
+    # Delete the physical file
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], screenshot.filename)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+    
+    # Delete the database record
+    db.session.delete(screenshot)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'deleted_id': screenshot_id}), 200
+
+
 @app.route('/screenshots/<filename>')
 def serve_screenshot(filename):
     """Serve a screenshot file"""
